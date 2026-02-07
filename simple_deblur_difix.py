@@ -222,6 +222,7 @@ class DeblurDiFix3DConfig(Config):
     difix_enhancement_l1_weight: float = 0.8
     difix_enhancement_perceptual_weight: float = 0.2
 
+    ref_perceptual_weight: float = 0.01
     
     # Avoid multiple initialization
     bad_gaussians_post_init_complete: bool = False
@@ -1535,6 +1536,10 @@ class DeblurDiFix3DRunner(Runner):
             
             num_train_rays_per_step = pixels.shape[0] * pixels.shape[1] * pixels.shape[2]
             image_ids = data["image_id"].to(device, non_blocking=True)
+            train_idx = int(image_ids[0].item())
+            ref_image = None
+            if cfg.ref_perceptual_weight > 0 and self.difix3d_processor is not None:
+                ref_image = self.difix3d_processor.load_ref_image(train_idx, self.trainset)
             if cfg.depth_loss:
                 points = data["points"].to(device, non_blocking=True)  # [1, M, 2]
                 depths_gt = data["depths"].to(device, non_blocking=True)  # [1, M]
@@ -1755,6 +1760,22 @@ class DeblurDiFix3DRunner(Runner):
             else:
                 ssimloss = 1.0 - self.ssim(pixels.permute(0, 3, 1, 2), colors.permute(0, 3, 1, 2))
             loss = l1loss * (1.0 - cfg.ssim_lambda) + ssimloss * cfg.ssim_lambda
+            ref_perc_loss = None
+            if cfg.ref_perceptual_weight > 0 and ref_image is not None:
+                colors_mid_nchw = colors_mid.permute(0, 3, 1, 2)
+                ref_image_nchw = ref_image.unsqueeze(0).permute(0, 3, 1, 2)
+                if ref_image_nchw.shape[-2:] != colors_mid_nchw.shape[-2:]:
+                    ref_image_nchw = F.interpolate(
+                        ref_image_nchw,
+                        size=colors_mid_nchw.shape[-2:],
+                        mode="bilinear",
+                        align_corners=False,
+                    )
+                ref_perc_loss = self.perceptual_loss(
+                    torch.clamp(colors_mid_nchw, 0.0, 1.0),
+                    torch.clamp(ref_image_nchw, 0.0, 1.0),
+                )
+                loss = loss + cfg.ref_perceptual_weight * ref_perc_loss
             if cfg.depth_loss:
                 # query depths from depth map
                 
@@ -1833,9 +1854,11 @@ class DeblurDiFix3DRunner(Runner):
                 self.writer.add_scalar("train/loss", loss.item(), step)
                 self.writer.add_scalar("train/l1loss", l1loss.item(), step)
                 self.writer.add_scalar("train/ssimloss", ssimloss.item(), step)
+                if ref_perc_loss is not None:
+                    self.writer.add_scalar("train/ref_perc_loss", ref_perc_loss.item(), step)
                 self.writer.add_scalar("train/num_GS", len(self.splats["means"]), step)
                 self.writer.add_scalar("train/mem", mem, step)
-
+                
                 # monitor camera pose optimization
                 metrics_dict = {}
                 # Handle DDP-wrapped module
