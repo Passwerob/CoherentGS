@@ -1583,7 +1583,9 @@ class DeblurDiFix3DRunner(Runner):
             
             
             depth_smooth_loss_value = 0.0
-
+            num_views = colors.shape[0]          
+            mid_idx = num_views // 2             
+            colors_mid = colors[mid_idx][None]
             # BAD-Gaussians: average the virtual views
             colors = colors.mean(0)[None]
             
