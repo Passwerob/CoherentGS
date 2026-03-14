@@ -53,10 +53,11 @@ For custom settings, start from `run.sh` and tweak dataset paths, resolution, an
 ## 🔗 Citation
 If CoherentGS supports your research, please cite:
 ```bibtex
-@article{feng2025coherentgs,
-  author    = {Feng, Chaoran and Xu, Zhankuo and Li, Yingtao and Zhao, Jianbin and Yang, Jiashu and Yu, Wangbo and Yuan, Li and Tian, Yonghong},
-  title     = {Breaking the Vicious Cycle: Coherent 3D Gaussian Splatting from Sparse and Motion-Blurred Views},
-  year      = {2025},
+@article{xu2025breaking,
+  title={Breaking the Vicious Cycle: Coherent 3D Gaussian Splatting from Sparse and Motion-Blurred Views},
+  author={Xu*, Zhankuo and Feng*, Chaoran and Li, Yingtao and Zhao, Jianbin and Yang, Jiashu and Yu, Wangbo and Yuan, Li and Tian, Yonghong},
+  journal={arXiv preprint arXiv:2512.10369},
+  year={2025}
 }
 ```
 
